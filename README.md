@@ -6,6 +6,7 @@ A powerful, standalone CLI utility designed to facilitate the migration of conte
 
 -   **Interactive Export:** Select which Content Types (Collection Types & Single Types) to export using an interactive checklist.
 -   **Full Localization Support:** Supports exporting and importing **all locales**, not just the default one. Correctly maps localized entries and their publication status.
+-   **View Configuration Transfer:** Automatically exports and imports the Admin Panel layout (Content Manager view configuration) for each content type.
 -   **Media Awareness:** Recursively scans exported content to find and link associated media files (images, videos, files).
 -   **State Preservation:** Correctly handles Strapi v5's Draft & Publish system across all locales. Exports the latest drafts while preserving the 'Published' status if applicable.
 -   **Portable Archives:** Bundles JSON data and physical media files into a compressed `.tar.gz` file.
@@ -81,10 +82,11 @@ npx /path/to/strapi-import-export-tool import ./path/to/export-file.tar.gz --cle
 1.  **Extraction:** Extracts the archive to a localized `temp-export-name` folder.
 2.  **Cleanup:** (If requested) Deletes existing DB entries and media matching the export manifest.
 3.  **Media Import:** Imports files into `public/uploads` and creates/links DB entries (deduplicated by hash).
-4.  **Content Creation (Phase 1):** Creates or updates content entries for all locales. Relations are temporarily skipped to avoid dependency cycles.
-5.  **Relation Linking (Phase 2):** Updates all entries to link relations, components, and dynamic zones.
-6.  **Publishing:** Publishes entries that were published in the source (per locale).
-7.  **Cleanup:** Removes the temporary extraction folder.
+4.  **View Configuration:** Restores Content Manager layouts (views) from the export.
+5.  **Content Creation (Phase 1):** Creates or updates content entries for all locales. Relations are temporarily skipped to avoid dependency cycles.
+6.  **Relation Linking (Phase 2):** Updates all entries to link relations, components, and dynamic zones.
+7.  **Publishing:** Publishes entries that were published in the source (per locale).
+8.  **Cleanup:** Removes the temporary extraction folder.
 
 ## Technical Details
 
