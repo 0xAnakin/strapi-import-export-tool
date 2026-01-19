@@ -1,6 +1,6 @@
 {
   "name": "strapi-import-export-tool",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A CLI tool to export and import data from Strapi v5, including media files.",
   "main": "index.js",
   "bin": {
