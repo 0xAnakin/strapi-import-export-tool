@@ -4,8 +4,15 @@ const { Command } = require('commander');
 const { runExport } = require('./lib/export');
 const { runImport } = require('./lib/import');
 const packageJson = require('./package.json');
+const path = require('path');
+const fs = require('fs');
 
 const program = new Command();
+
+// Ensure we are in a Strapi project if not specified? 
+// Actually loadLocalStrapi handles the check, but uses process.cwd().
+// If user runs global command, process.cwd() is where they ran it.
+
 
 program
   .name('strapi-tool')
