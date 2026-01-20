@@ -4,7 +4,7 @@
   "description": "A CLI tool to export and import data from Strapi v5, including media files.",
   "main": "index.js",
   "bin": {
-    "strapi-migrate": "./index.js"
+    "strapi-migrate": "index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
