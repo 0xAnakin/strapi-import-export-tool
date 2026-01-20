@@ -67,7 +67,7 @@ npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz
 npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean
 
 # Cleanup Only (Delete matching entries & media, do not import)
-npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean-no-import
+npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean --skip-import
 ```
 
 **Options:**
@@ -76,16 +76,18 @@ npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean-no-impor
     -   **Single Types:** Deletes existing local entries to ensure a fresh state.
     -   **Media:** Deletes local files matching the **hashes** in the export.
     *Using this flag ensures a fresh import for specific content without wiping the entire database.*
--   `--clean-no-import`: Performs the targeted deletion step described above and then exits without importing. Useful for selectively removing content packages.
+-   `--skip-import`: **Skip Import Phases:** Performs extraction and optional cleanup (if `--clean` is used), but skips the actual creation and linking of content.
+    -   Use `npx strapi-migrate import <file> --clean --skip-import` to perform a "Clean Only" operation.
+-   `--keep-media`: **Skip Media Deletion:** When used with `--clean`, prevents the tool from deleting any media files. Useful if your media library is shared across multiple content types not included in the export.
 
 **Import Process:**
 1.  **Extraction:** Extracts the archive to a localized `temp-export-name` folder.
-2.  **Cleanup:** (If requested) Deletes existing DB entries and media matching the export manifest.
-3.  **Media Import:** Imports files into `public/uploads` and creates/links DB entries (deduplicated by hash).
-4.  **View Configuration:** Restores Content Manager layouts (views) from the export.
-5.  **Content Creation (Phase 1):** Creates or updates content entries for all locales. Relations are temporarily skipped to avoid dependency cycles.
-6.  **Relation Linking (Phase 2):** Updates all entries to link relations, components, and dynamic zones.
-7.  **Publishing:** Publishes entries that were published in the source (per locale).
+2.  **Cleanup:** (If `--clean`) Deletes existing DB entries and media matching the export manifest.
+3.  **Media Import:** (Unless `--skip-import`) Imports files into `public/uploads` and creates/links DB entries.
+4.  **View Configuration:** (Unless `--skip-import`) Restores Content Manager layouts (views).
+5.  **Content Creation:** (Unless `--skip-import`) Creates or updates content entries for all locales.
+6.  **Relation Linking:** (Unless `--skip-import`) Updates entries to link relations.
+7.  **Publishing:** (Unless `--skip-import`) Publishes entries.
 8.  **Cleanup:** Removes the temporary extraction folder.
 
 ## Technical Details
@@ -93,14 +95,6 @@ npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean-no-impor
 -   **Runtime:** Node.js
 -   **Key Libraries:** `commander`, `inquirer`, `tar`.
 -   **Strapi Integration:** Uses Strapi v5's `strapi.documents` service for advanced content handling (drafts, locales, document IDs) and the Entity Service for media.
-
-## Disclaimer
-
-This tool is provided "as is". Always backup your database and uploads folder before performing imports, especially when using the `--clean` flags.
-
-To modify this tool:
-1.  Edit files in `lib/`.
-2.  Test changes by running `node index.js export` from a valid Strapi project directory.
 
 ## Disclaimer
 

@@ -34,7 +34,8 @@ program.command('import')
   .description('Import data from a tar.gz archive or folder')
   .argument('<path>', 'Path to the export archive or directory')
   .option('--clean', 'Delete entries matching the export before importing')
-  .option('--clean-no-import', 'Only delete entries matching the export without importing')
+  .option('--skip-import', 'Skip the import phases (creation & linking). Use with --clean to only perform cleanup.')
+  .option('--keep-media', 'Skip deleting media files during cleanup')
   .action((path, options) => {
     runImport(path, options);
   });
