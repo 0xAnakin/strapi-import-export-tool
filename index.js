@@ -34,9 +34,9 @@ program.command('export')
 program.command('import')
   .description('Import data from a tar.gz archive, folder, or URL')
   .argument('<path>', 'Path (filesystem or URL) to the export archive or directory')
-  .option('--clean', 'Delete entries matching the export before importing')
-  .option('--skip-import', 'Skip the import phases (creation & linking). Use with --clean to only perform cleanup.')
-  .option('--keep-media', 'Skip deleting media files during cleanup')
+  .option('--clean', 'Perform cleanup ONLY: Delete entries, schema, and media matching the export. Does NOT import.')
+  .option('--skip-schema', 'Skip deleting/overwriting schema files (src/api, src/components)')
+  .option('--skip-media', 'Skip deleting media files during cleanup')
   .option('--dry-run', 'LIST what would be imported/deleted without making changes')
   .action((path, options) => {
     runImport(path, options);

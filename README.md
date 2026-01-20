@@ -7,6 +7,7 @@ A powerful, standalone CLI utility designed to facilitate the migration of conte
 -   **Interactive Export:** Select which Content Types (Collection Types & Single Types) to export using an interactive checklist.
 -   **Full Localization Support:** Supports exporting and importing **all locales**, not just the default one. Correctly maps localized entries and their publication status.
 -   **View Configuration Transfer:** Automatically exports and imports the Admin Panel layout (Content Manager view configuration) for each content type.
+-   **Source Code Sync:** Automatically enables the transfer of schema definitions (`src/api` and `src/components`). Ensures that the content structure in the destination matches the data being imported.
 -   **Media Awareness:** Recursively scans exported content to find and link associated media files (images, videos, files).
 -   **State Preservation:** Correctly handles Strapi v5's Draft & Publish system across all locales. Exports the latest drafts while preserving the 'Published' status if applicable.
 -   **Portable Archives:** Bundles JSON data and physical media files into a compressed `.tar.gz` file.
@@ -79,6 +80,8 @@ The tool generates an export archive in the `export-data/` folder at your projec
 
 Run the import command from the target Strapi project root. The tool accepts a **local file path** or a **remote URL**.
 
+The import process now handles **Source Code Synchronization** automatically. If your export archive contains schema definitions (`src/api` and `src/components`), they will be imported and will overwrite existing files to ensure the schema matches the content.
+
 ```bash
 # Standard Import (Local File)
 npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz
@@ -88,34 +91,51 @@ npx /path/to/strapi-migrate import "https://example.com/backups/export.tar.gz"
 
 # Dry Run (Simulate import without changes)
 npx /path/to/strapi-migrate import ./export.tar.gz --dry-run
+```
 
-# Clean Import (Delete matching entries & media first)
-npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean
+**Cleanup & Import Strategies:**
 
-# Cleanup Only (Delete matching entries & media, do not import)
-npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean --skip-import
+The `--clean` flag is powerful and can remove Data, Schema, and Media. You can control exactly what is removed using the skip flags.
+
+**NOTE:** The `--clean` flag operates in **Clean-Only Mode**. If you use `--clean`, the tool will perform the requested cleanup operations and then **EXIT**. It will *not* proceed to import data. To clean and then import, you must run the cleanup command followed by a standard import command.
+
+```bash
+# 1. Clean Everything (DB Entries, API/Component Schemas, Media)
+npx /path/to/strapi-migrate import ./export.tar.gz --clean
+
+# 2. Clean Content Only (Preserve Schema & Media)
+npx /path/to/strapi-migrate import ./export.tar.gz --clean --skip-schema --skip-media
+
+# 3. Clean Content & Media (Preserve Schema)
+npx /path/to/strapi-migrate import ./export.tar.gz --clean --skip-schema
+
+# 4. Perform Import (After cleanup)
+npx /path/to/strapi-migrate import ./export.tar.gz
 ```
 
 **Options:**
--   `--dry-run`: **Simulation Mode:** Downloads/Extracts the archive and lists all operations (Creates, Updates, Deletions) that *would* be performed, without modifying the database or file system.
--   `--clean`: **Targeted Deletion:** Scopes deletion *strictly* to the items found in the export file.
-    -   **Collection Types:** Deletes local entries matching `documentId`s from the export.
-    -   **Single Types:** Deletes existing local entries to ensure a fresh state.
-    -   **Media:** Deletes local files matching the **hashes** in the export.
-    *Using this flag ensures a fresh import for specific content without wiping the entire database.*
--   `--skip-import`: **Skip Import Phases:** Performs extraction and optional cleanup (if `--clean` is used), but skips the actual creation and linking of content.
-    -   Use `npx strapi-migrate import <file> --clean --skip-import` to perform a "Clean Only" operation.
--   `--keep-media`: **Skip Media Deletion:** When used with `--clean`, prevents the tool from deleting any media files. Useful if your media library is shared across multiple content types not included in the export.
+-   `--clean`: **Destructive Cleanup Mode:** Deletes entities, schema files (`src/api`, `src/components`), and media files matching the export. **Does NOT import data.** Exits after cleanup.
+    -   **Scope of Deletion:** This process is strictly scoped. It **ONLY** deletes items that match the contents of the `.tar.gz` export file.
+    -   **Data:** Deletes only the specific database entries (by `documentId`) found in the export. It does not wipe entire tables.
+    -   **Media:** Deletes only the media files (by hash) found in the export. It does not wipe the `public/uploads` directory.
+    -   **Source Code:** Deletes only the specific schema files found in the export. It does not delete other custom files in `src/api` or `src/components`.
+-   `--skip-schema`: **Protect Schema:**
+    -   When used with `--clean`: Prevents deletion of schema files in `src/api` and `src/components` and DB entries.
+    -   During Import: Prevents overwriting of local schema files with versions from the export.
+-   `--skip-media`: **Protect Media:**
+    -   When used with `--clean`: Prevents deletion of media files from `public/uploads`.
+-   `--dry-run`: **Simulation Mode:** Lists all operations (Creates, Updates, Deletions) that *would* be performed, without modifying anything.
 
 **Import Process:**
 1.  **Extraction:** Extracts the archive to a localized `temp-export-name` folder.
-2.  **Cleanup:** (If `--clean`) Deletes existing DB entries and media matching the export manifest.
-3.  **Media Import:** (Unless `--skip-import`) Imports files into `public/uploads` and creates/links DB entries.
-4.  **View Configuration:** (Unless `--skip-import`) Restores Content Manager layouts (views).
-5.  **Content Creation:** (Unless `--skip-import`) Creates or updates content entries for all locales.
-6.  **Relation Linking:** (Unless `--skip-import`) Updates entries to link relations.
-7.  **Publishing:** (Unless `--skip-import`) Publishes entries.
-8.  **Cleanup:** Removes the temporary extraction folder.
+2.  **Cleanup:** (If `--clean`) Deletes existing DB entries, schema files, and media matches, then EXITS.
+3.  **Media Import:** Imports files into `public/uploads` and creates/links DB entries.
+4.  **Schema Import:** Updates `src/api` and `src/components` (unless `--skip-schema`).
+5.  **View Configuration:** Restores Content Manager layouts (views).
+6.  **Content Creation:** Creates or updates content entries for all locales.
+7.  **Relation Linking:** Updates entries to link relations.
+8.  **Publishing:** Publishes entries.
+9.  **Cleanup:** Removes the temporary extraction folder.
 
 ## Technical Details
 
@@ -125,17 +145,11 @@ npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz --clean --skip-i
 
 ## Disclaimer
 
-This tool is provided "as is" without warranty of any kind, express or implied. The authors are not responsible for any data loss or damage that may occur when using this tool.
-
-**ALWAYS BACKUP YOUR EXPORT DATA AND YOUR DATABASE BEFORE RUNNING EXPORT/IMPORT OPERATIONS.**
-
-It is strongly recommended to test migrations in a development or staging environment before applying them to production.
-
 **USE AT YOUR OWN RISK.**
 
 This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
 
-**ALWAYS BACKUP YOUR DATABASE AND MEDIA FILES BEFORE RUNNING IMPORT OPERATIONS.**
+**ALWAYS BACKUP YOUR DATABASE AND FILES BEFORE RUNNING IMPORT OPERATIONS.**
 This tool performs create, update, and delete operations on your database and file system.
 
 
