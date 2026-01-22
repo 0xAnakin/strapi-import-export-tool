@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 
+/**
+ * @fileoverview Strapi Migration CLI Tool
+ * @description CLI entry point for the strapi-migrate tool that handles import/export
+ * operations for Strapi v4/v5 content types, media, and schema files.
+ * @module strapi-migrate
+ * @author strapi-migrate
+ * @license MIT
+ */
+
 const { Command } = require('commander');
 const { runExport } = require('./lib/export');
 const { runImport } = require('./lib/import');
