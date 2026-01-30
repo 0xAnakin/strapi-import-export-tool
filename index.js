@@ -32,23 +32,39 @@ program
   .version(packageJson.version);
 
 program.command('export')
-  .description('Export content types and media from the current Strapi project')
-  .argument('[types...]', 'Space-separated list of content type UIDs (e.g. api::article.article). If empty, interactive mode starts.')
-  .option('--all', 'Export all API content types without prompting')
-  .option('--filter-api <pattern>', 'Filter content types by matching regex against their collectionName')
-  .option('--filter-components <pattern>', 'Filter components by matching regex against their collectionName')
-  .option('--dry-run', 'LIST what would be exported without creating an archive')
+  .description('Export content types and media from the current Strapi project. Note: [types...], --all, --filter-api, and --filter-components are mutually exclusive.')
+  .argument('[types...]', 'Content type UIDs to export (e.g. api::article.article)')
+  .option('--all', 'Export all api:: content types without prompting')
+  .option('--filter-api <pattern>', 'Export content types where collectionName matches this regex pattern')
+  .option('--filter-components <pattern>', 'Export only components where collectionName matches this regex pattern')
+  .option('--dry-run', 'Preview what would be exported without creating any files')
   .action((types, options) => {
+    // Validate mutually exclusive options
+    const selectionOptions = [
+      types && types.length > 0 ? 'types' : null,
+      options.all ? '--all' : null,
+      options.filterApi ? '--filter-api' : null,
+      options.filterComponents ? '--filter-components' : null
+    ].filter(Boolean);
+
+    if (selectionOptions.length > 1) {
+      console.error(`\n  Error: The following options are mutually exclusive and cannot be used together:`);
+      console.error(`    ${selectionOptions.join(', ')}`);
+      console.error(`\n  Use only one of: [types...], --all, --filter-api, or --filter-components`);
+      console.error(`  (--dry-run can be combined with any of them)\n`);
+      process.exit(1);
+    }
+
     runExport(types, options);
   });
 
 program.command('import')
   .description('Import data from a tar.gz archive, folder, or URL')
-  .argument('<path>', 'Path (filesystem or URL) to the export archive or directory')
-  .option('--clean', 'Perform cleanup ONLY: Delete entries, schema, and media matching the export. Does NOT import.')
-  .option('--skip-schema', 'Skip deleting/overwriting schema files (src/api, src/components)')
-  .option('--skip-media', 'Skip deleting media files during cleanup')
-  .option('--dry-run', 'LIST what would be imported/deleted without making changes')
+  .argument('<path>', 'Path to .tar.gz file, extracted folder, or http(s):// URL')
+  .option('--clean', 'CLEANUP MODE: Delete matching DB entries, schema files, and media from target, then EXIT. Does NOT import.')
+  .option('--skip-schema', 'Skip schema FILE operations only (src/api, src/components). Does NOT affect database content.')
+  .option('--skip-media', 'Skip media file operations. Import: don\'t copy media. Cleanup: don\'t delete media files.')
+  .option('--dry-run', 'Preview only: show what would be imported or deleted without making any changes.')
   .action((path, options) => {
     runImport(path, options);
   });

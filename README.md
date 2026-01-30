@@ -1,169 +1,302 @@
-# Strapi Migrate (strapi-migrate)
+# Strapi Migrate
 
-A powerful, standalone CLI utility designed to facilitate the migration of content and media between Strapi v5 installations. This tool handles complex content relationships, media file associations, and full localization, packaging everything into a portable `.tar.gz` archive.
+[![npm version](https://img.shields.io/npm/v/strapi-migrate.svg)](https://www.npmjs.com/package/strapi-migrate)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+
+A CLI tool for migrating content, media, and schemas between Strapi v5 installations. Handles complex relationships, media associations, localization, and schema synchronization—all packaged into a portable `.tar.gz` archive.
+
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+  - [Export](#export)
+  - [Import](#import)
+  - [Cleanup](#cleanup)
+- [Workflows](#workflows)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ## Features
 
--   **Interactive Export:** Select which Content Types (Collection Types & Single Types) to export using an interactive checklist.
--   **Full Localization Support:** Supports exporting and importing **all locales**, not just the default one. Correctly maps localized entries and their publication status.
--   **View Configuration Transfer:** Automatically exports and imports the Admin Panel layout (Content Manager view configuration) for each content type.
--   **Source Code Sync:** Automatically enables the transfer of schema definitions (`src/api` and `src/components`). Ensures that the content structure in the destination matches the data being imported.
--   **Media Awareness:** Recursively scans exported content to find and link associated media files (images, videos, files).
--   **State Preservation:** Correctly handles Strapi v5's Draft & Publish system across all locales. Exports the latest drafts while preserving the 'Published' status. Smartly handles Content Types with "Draft & Publish" disabled by enforcing published status during import.
--   **Portable Archives:** Bundles JSON data and physical media files into a compressed `.tar.gz` file.
--   **Smart Import:**
-    -   **Media Deduplication:** Checks file hashes to prevent creating duplicate media entries if the file already exists in the target Strapi.
-    -   **ID Remapping:** Automatically updates content to point to the correct Media IDs in the new database.
-    -   **Relation Linking:** Handles complex relations, including deep component/dynamic zone references.
-    -   **Auto-Locale Creation:** Automatically detects locales used in the export and creates them in the target Strapi if they are missing.
-    -   **Targeted Cleanup:** Optional flags to clean specifically the exported content from the destination before import.
-    -   **Schema Sync (Pre-Boot):** Automatically detects and copies missing schema definitions (`src/api`, `src/components`) from the export *before* Strapi boots. This ensures the database schema updates immediately without requiring a restart or second run.
-    -   **Structured Logging:** Provides clear, indented, and detailed feedback for every operation (Creates, Updates, Links, Deletions).
+**Export**
+- Interactive content type selection or CLI-based filtering
+- Automatic relation resolution across content types
+- Full localization support with publication states
+- Media file discovery and bundling
+- Schema and component definition export
+- Content Manager layout preservation
+
+**Import**
+- Hash-based media deduplication
+- Automatic ID remapping for media references
+- Complex relation linking (nested components, dynamic zones)
+- Auto-creation of missing locales
+- Pre-boot schema synchronization
+- Draft and publish state handling
+- Direct URL import support
 
 ## Prerequisites
 
--   **Strapi v5:** This tool is designed for Strapi v5 architecture (using the Document Service API).
--   **Execution Context:** You must run this tool **from the root directory** of your Strapi project. It relies on loading the `@strapi/strapi` from your project's `node_modules` and reading your project's configuration.
--   **Strapi Offline:** Ensure your Strapi server is **NOT running** (stop `npm run develop` or similar commands). The tool boots its own internal Strapi instance to perform operations and requires exclusive access to the database and schema files.
+| Requirement | Details |
+|-------------|---------|
+| Strapi | v5.x (Document Service API) |
+| Node.js | v18.0.0+ |
+| Context | Run from Strapi project root |
+| Server | Strapi must be stopped |
+
+> **Important**: Stop your Strapi server before running any commands. This tool boots its own Strapi instance.
 
 ## Installation
 
-You can install this tool globally, run it using `npx`, or clone it locally.
-
-### Running from Source (Local Development)
-
 ```bash
-# Clone the repository
-git clone https://github.com/0xAnakin/strapi-migrate.git
-cd strapi-migrate
+# Global install
+npm install -g strapi-migrate
 
-# Install dependencies
-npm install
-
-# Link globally (optional)
-npm link
+# Or use directly with npx
+npx strapi-migrate <command>
 ```
 
-### Usage
+## Quick Start
 
-> **⚠️ CRITICAL: STOP YOUR STRAPI SERVER**
-> Before running any export or import commands, ensure your local Strapi server is **completely shut down**.
-> This tool boots its own internal Strapi instance. Running it simultaneously with a dev server will cause database locking issues, file permission errors, and potential data corruption.
-
-**If linked globally:**
 ```bash
+# Export all content types
+cd /path/to/source-strapi
+strapi-migrate export --all
+
+# Import into target project
+cd /path/to/target-strapi
+strapi-migrate import ./export-data/export-2024-01-15T10-30-00.tar.gz
+```
+
+## Commands
+
+### Export
+
+```bash
+strapi-migrate export [types...] [options]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `[types...]` | Content type UIDs (e.g., `api::article.article`) |
+| `--all` | Export all API content types |
+| `--filter-api <pattern>` | Filter types by `collectionName` regex |
+| `--filter-components <pattern>` | Filter components by `collectionName` regex |
+| `--dry-run` | Preview without creating files |
+
+> **Note**: `[types...]`, `--all`, `--filter-api`, and `--filter-components` are mutually exclusive. Use only one. `--dry-run` can be combined with any.
+
+#### Behavior
+
+- Without arguments: interactive selection prompt
+- Related content types are automatically included
+- Components used by selected types are bundled
+- Referenced media files are discovered and packaged
+
+#### Examples
+
+```bash
+# Interactive selection
 strapi-migrate export
-strapi-migrate import <archive>
+
+# Export everything
+strapi-migrate export --all
+
+# Export specific types
+strapi-migrate export api::article.article api::category.category
+
+# Filter by pattern
+strapi-migrate export --filter-api "^blog_"
+strapi-migrate export --filter-components "^shared_"
+
+# Preview mode
+strapi-migrate export --all --dry-run
 ```
 
-**If running with Node directly:**
-```bash
-node /absolute/path/to/strapi-migrate/index.js export
+#### Output
+
+Archives are saved to `./export-data/` as:
+```
+export-YYYY-MM-DDTHH-mm-ss-sssZ.tar.gz
 ```
 
-## Usage (Detailed)
+---
 
-### Exporting Data
-
-Run the export command from your **Strapi project root**.
-
-**Interactive Mode:**
-If you don't specify any content types, the tool will fetch all `api::` content types and present a selection list.
-
-```bash
-npx /path/to/strapi-migrate export
-# OR
-node /path/to/strapi-migrate/index.js export
-```
-
-**Options:**
--   `--all`: Export all API content types without prompting.
--   `--filter-api <pattern>`: Filter content types by matching regex against their `collectionName`. (e.g., `^api::category.*`)
--   `--filter-components <pattern>`: Filter components by matching regex against their `collectionName`. useful for restricting the schema source code export.
--   `--dry-run`: Evaluate what would be exported without creating an archive or copying files.
--   `<types...>`: Specify content types directly (e.g., `api::article.article`).
-
-**Output:**
-The tool generates an export archive in the `export-data/` folder at your project root, named `export-YYYY-MM-DD-THH-mm-ss.tar.gz`.
-
-### Importing Data
-
-Run the import command from the target Strapi project root. The tool accepts a **local file path** or a **remote URL**.
-
-The import process now handles **Source Code Synchronization** automatically. If your export archive contains schema definitions (`src/api` and `src/components`), they will be imported **BEFORE** Strapi boots. This ensures that Strapi loads the correct schema configuration (including localization settings) from the start, preventing data loss for localized entries.
-
-**Important:** If you are importing new Content Types that do not exist in the target project, the tool will automatically trigger a database schema update during the boot process. You do **not** need to run the import twice.
+### Import
 
 ```bash
-# Standard Import (Local File)
-npx /path/to/strapi-migrate import ./path/to/export-file.tar.gz
-
-# Remote Import (URL)
-npx /path/to/strapi-migrate import "https://example.com/backups/export.tar.gz"
-
-# Dry Run (Simulate import without changes)
-npx /path/to/strapi-migrate import ./export.tar.gz --dry-run
+strapi-migrate import <path> [options]
 ```
 
-**Cleanup & Import Strategies:**
+#### Arguments
 
-The `--clean` flag is powerful and can remove Data, Schema, and Media. You can control exactly what is removed using the skip flags.
+| Argument | Description |
+|----------|-------------|
+| `<path>` | Archive file, directory, or URL |
 
-**NOTE:** The `--clean` flag operates in **Clean-Only Mode**. If you use `--clean`, the tool will perform the requested cleanup operations and then **EXIT**. It will *not* proceed to import data. To clean and then import, you must run the cleanup command followed by a standard import command.
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--clean` | Delete matching data and exit (no import) |
+| `--skip-schema` | Skip schema file operations (`src/api`, `src/components`) |
+| `--skip-media` | Skip media file operations (`public/uploads`) |
+| `--dry-run` | Preview without making changes |
+
+> **Note**: All import flags can be combined freely.
+
+#### Flag Effects
+
+| Flag | Affects | Does Not Affect |
+|------|---------|-----------------|
+| `--skip-schema` | `src/api/*`, `src/components/*` files | Database content, media |
+| `--skip-media` | `public/uploads/*` files only | Database entries, schema files, content |
+| `--clean` | Operation mode (cleanup vs import) | What gets processed (use skip flags) |
+| `--dry-run` | Execution (preview only) | Nothing modified |
+
+#### Import Behavior
+
+| Flags | Schema Files | Media Files | Media DB | Content DB |
+|-------|:------------:|:-----------:|:--------:|:----------:|
+| *(none)* | Imported | Imported | Imported | Imported |
+| `--skip-schema` | Skipped | Imported | Imported | Imported |
+| `--skip-media` | Imported | Skipped | Imported | Imported |
+| `--skip-schema --skip-media` | Skipped | Skipped | Imported | Imported |
+
+#### Examples
 
 ```bash
-# 1. Clean Everything (DB Entries, API/Component Schemas, Media)
-npx /path/to/strapi-migrate import ./export.tar.gz --clean
+# Standard import
+strapi-migrate import ./export.tar.gz
 
-# 2. Clean Content Only (Preserve Schema & Media)
-npx /path/to/strapi-migrate import ./export.tar.gz --clean --skip-schema --skip-media
+# Import from URL
+strapi-migrate import "https://example.com/backup.tar.gz"
 
-# 3. Clean Content & Media (Preserve Schema)
-npx /path/to/strapi-migrate import ./export.tar.gz --clean --skip-schema
+# Content only (no schema changes)
+strapi-migrate import ./export.tar.gz --skip-schema
 
-# 4. Perform Import (After cleanup)
-npx /path/to/strapi-migrate import ./export.tar.gz
+# Content only (no schema or media)
+strapi-migrate import ./export.tar.gz --skip-schema --skip-media
+
+# Preview
+strapi-migrate import ./export.tar.gz --dry-run
 ```
 
-**Options:**
--   `--clean`: **Destructive Cleanup Mode:** Deletes entities, schema files (`src/api`, `src/components`), and media files matching the export. **Does NOT import data.** Exits after cleanup.
-    -   **Scope of Deletion:** This process is strictly scoped. It **ONLY** deletes items that match the contents of the `.tar.gz` export file.
-    -   **Data:** Deletes only the specific database entries (by `documentId`) found in the export. It does not wipe entire tables.
-    -   **Media:** Deletes only the media files (by hash) found in the export. It does not wipe the `public/uploads` directory.
-    -   **Source Code:** Deletes only the specific schema files found in the export. It does not delete other custom files in `src/api` or `src/components`.
--   `--skip-schema`: **Protect Schema:**
-    -   When used with `--clean`: Prevents deletion of schema files in `src/api` and `src/components` and DB entries.
-    -   During Import: Prevents overwriting of local schema files with versions from the export.
--   `--skip-media`: **Protect Media:**
-    -   When used with `--clean`: Prevents deletion of media files from `public/uploads`.
--   `--dry-run`: **Simulation Mode:** Lists all operations (Creates, Updates, Deletions) that *would* be performed, without modifying anything.
+---
 
-**Import Process:**
-1.  **Extraction:** Extracts the archive to a localized `temp-export-name` folder.
-2.  **Schema Import:** Updates `src/api` and `src/components` (unless `--skip-schema`). **This happens before Strapi boots.**
-3.  **Boot Phase:** Loads the local Strapi instance (which sees the new schema and updates the DB).
-4.  **Cleanup:** (If `--clean`) Deletes existing DB entries, schema files, and media matches, then EXITS.
-5.  **Media Import:** Imports files into `public/uploads` and creates/links DB entries.
-6.  **View Configuration:** Restores Content Manager layouts (views).
-7.  **Locale Configuration:** Checks and creates missing locales.
-8.  **Content Creation:** Creates or updates content entries for all locales.
-9.  **Relation Linking:** Updates entries to link relations.
-10. **Publishing:** Publishes entries.
-11. **Cleanup:** Removes the temporary extraction folder.
+### Cleanup
 
-## Technical Details
+The `--clean` flag deletes matching data without importing.
 
--   **Runtime:** Node.js
--   **Key Libraries:** `commander`, `inquirer`, `tar`.
--   **Strapi Integration:** Uses Strapi v5's `strapi.documents` service for advanced content handling (drafts, locales, document IDs) and the Entity Service for media.
+```bash
+strapi-migrate import <path> --clean [options]
+```
 
-## Disclaimer
+#### Cleanup Behavior
 
-**USE AT YOUR OWN RISK.**
+| Flags | Schema Files | Media Files | Media DB | Content DB |
+|-------|:------------:|:-----------:|:--------:|:----------:|
+| `--clean` | Deleted | Deleted | Deleted | Deleted |
+| `--clean --skip-schema` | Kept | Deleted | Deleted | Deleted |
+| `--clean --skip-media` | Deleted | Kept | Deleted | Deleted |
+| `--clean --skip-schema --skip-media` | Kept | Kept | Deleted | Deleted |
 
-This software is provided "as is", without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+#### Cleanup Scope
 
-**ALWAYS BACKUP YOUR DATABASE AND FILES BEFORE RUNNING IMPORT OPERATIONS.**
-This tool performs create, update, and delete operations on your database and file system.
+Cleanup only affects items present in the export manifest:
 
+| Target | Scope |
+|--------|-------|
+| Content | Entries with matching `documentId` |
+| Media | Files with matching `hash` |
+| Schemas | API/component files in the export |
 
+#### Examples
+
+```bash
+# Delete everything matching the export
+strapi-migrate import ./export.tar.gz --clean
+
+# Delete content and media only
+strapi-migrate import ./export.tar.gz --clean --skip-schema
+
+# Delete content only
+strapi-migrate import ./export.tar.gz --clean --skip-schema --skip-media
+
+# Preview deletion
+strapi-migrate import ./export.tar.gz --clean --dry-run
+```
+
+## Workflows
+
+### Full Migration
+
+```bash
+# Source: export
+cd /path/to/source-strapi
+strapi-migrate export --all
+
+# Transfer archive to target server
+
+# Target: import
+cd /path/to/target-strapi
+strapi-migrate import ./export.tar.gz
+```
+
+### Clean Slate Import
+
+```bash
+# Remove existing data
+strapi-migrate import ./export.tar.gz --clean
+
+# Import fresh
+strapi-migrate import ./export.tar.gz
+```
+
+### Content-Only Sync
+
+```bash
+# Preserve target schemas
+strapi-migrate import ./export.tar.gz --skip-schema
+```
+
+### Selective Export
+
+```bash
+# Specific types (relations auto-included)
+strapi-migrate export api::article.article
+
+# Pattern matching
+strapi-migrate export --filter-api "^blog_"
+```
+
+### Preview Mode
+
+```bash
+strapi-migrate export --all --dry-run
+strapi-migrate import ./export.tar.gz --dry-run
+strapi-migrate import ./export.tar.gz --clean --dry-run
+```
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Error loading Strapi core" | Run from Strapi project root (where `package.json` is located) |
+| Database locking errors | Stop the Strapi development server before running commands |
+| Missing content types after import | Restart Strapi to load schema changes |
+| Media files not found | Ensure source uses standard `public/uploads` location |
+
+## License
+
+MIT (c) [0xAnakin](https://github.com/0xAnakin)
+
+---
+
+**Disclaimer**: Use at your own risk. Always backup your database and files before running import operations.
